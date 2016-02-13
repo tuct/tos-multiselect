@@ -14,17 +14,16 @@
 <link rel="import" href="simple-overlay.html">
 <script src="../string-truncate-util/string-truncate.js"></script>
 <!--
-An element providing a solution to no problem in particular.
+Multi selection element with typeahead 
 
 Example:
 
-    <tos-multiselect></tos-multiselect>
-
-Example:
-
-    <tos-multiselect>
-      <h2>Hello tos-multiselect</h2>
+    <tos-multiselect
+        label="Select a dog bread" 
+        selected-items='["Afghan Hound","Aidi",]' 
+        data='["Afghan Hound","Aidi","Akbash","Northern Inuit Dog"]'>
     </tos-multiselect>
+
 
 @demo demo/index.html
 -->
@@ -123,7 +122,7 @@ Example:
             </paper-item>
           </template>
         </div>
-    
+  
         <div class="list short" role="listbox">
           <iron-selector multi 
             id="multiselect" 
@@ -159,43 +158,65 @@ Example:
         Polymer.IronA11yKeysBehavior
       ],
       properties: {
-        //list of names of the selected items!
+        /**
+         * Array with all selected items of the multiselect
+         */
         selectedItems: {
           type: Array,
           value: function() {
             return [];
           }
         },
+        /**
+         * The value the user typed 
+         */
         typedValue: {
           type: String,
           observer: '_typedValueChanged',
           notify: true
         },
+        /**
+         * Number of results displayed while searching or opening the multiselect
+         */
         maxResults: {
           type: Number,
           value: 8
         },
-
+        /**
+         * Disable the typeahead fucntionality
+         */
         typeaheadDisabled: {
           type: Boolean,
           value: false
         },
+        /**
+         * All items availiable for selection
+         */
         data: {
           type: Array,
           value: []
         },
-        //readonly?
+        /**
+         * The status of the multiselect, true if opend
+         */
         opened: {
           type: Boolean,
           value: false,
           readOnly: true
         },
+        /**
+         * Function used to get the displayed values, overwrite in order to implement asyn loading
+         */
         filteredItems: {
           type: Array,
           computed: '_getFiltered(data.*, typedValue, filterFn, maxResults,' +
           'typeaheadDisabled)',
           notify: true
         },
+        /**
+         * Function used by filteredItems to filter the items against the typed value
+         * Default implementation is a case insensitive contains filter 
+         */
         filterFn: {
           type: Function,
           value: function() {
@@ -212,6 +233,9 @@ Example:
             };
           }
         },
+        /**
+         * List of selected but because of the current search not visible items 
+         */
         _selectedItemsHidden: {
           type: Array,
           value: function() {
@@ -285,6 +309,9 @@ Example:
         });
 
       },
+      /**
+       * Clear all selected items, if search is active only visible items will be cleared
+       */
       clearSelection: function () {
         //clear visible selected (in search)
         var multiselect = this.$$('#multiselect');
@@ -420,7 +447,7 @@ Example:
             "top: "+(container.offsetTop+container.offsetHeight)+"px; "+
             "width:"+container.clientWidth+"px;");
           this.$.results.open();
-          
+          this.fire('tos-multiselect-opened');
         }
       },
       _hideResults: function(){
@@ -428,6 +455,7 @@ Example:
           this.$.results.close();
           this.typedValue = truncate.arrayOfStrings(this.selectedItems);
           this._setOpened(false);
+          this.fire('tos-multiselect-closed');
         }
       },
       _toggleResult: function (event){
@@ -468,7 +496,10 @@ Example:
           this._hideResults();
         }
       }
-
+/**
+ * Fired after the `tos-multiselect` opens.
+ * @event tos-multiselect-opened
+ */
     });
   </script>
 </dom-module>
