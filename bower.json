@@ -1,6 +1,6 @@
 {
   "name": "tos-multiselect",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "authors": [
     "Tobias Stanzel <tobi.stanzel@gmail.com>"
   ],
@@ -19,6 +19,10 @@
     "/.*",
     "/test/"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/tuct/tos-multiselect.git"
+  },
   "dependencies": {
     "polymer": "~1.2.0",
     "iron-selector": "PolymerElements/iron-selector#~1.0.8",
