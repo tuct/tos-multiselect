@@ -1,0 +1,505 @@
+
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../iron-selector/iron-selector.html">
+<link rel="import" href="../iron-flex-layout/iron-flex-layout.html">
+<link rel="import" href="../iron-icons/iron-icons.html">
+<link rel="import" href="../iron-overlay-behavior/iron-overlay-behavior.html">
+<link rel="import" href="../iron-a11y-keys-behavior/iron-a11y-keys-behavior.html">
+<link rel="import" href="../paper-input/paper-input.html">
+<link rel="import" href="../paper-item/paper-item.html">
+<link rel="import" href="../paper-item/paper-icon-item.html">
+<link rel="import" href="../paper-checkbox/paper-checkbox.html">
+<link rel="import" href="../paper-button/paper-button.html">
+<link rel="import" href="../paper-icon-button/paper-icon-button.html">
+<link rel="import" href="simple-overlay.html">
+<script src="../string-truncate-util/string-truncate.js"></script>
+<!--
+Multi selection element with typeahead 
+
+Example:
+
+    <tos-multiselect
+        label="Select a dog bread" 
+        selected-items='["Afghan Hound","Aidi",]' 
+        data='["Afghan Hound","Aidi","Akbash","Northern Inuit Dog"]'>
+    </tos-multiselect>
+
+
+@demo demo/index.html
+-->
+
+<dom-module id="tos-multiselect">
+  <template>
+    <style>
+
+      :host {
+        display: block;
+        box-sizing: border-box;
+        font-family: 'Roboto', 'Noto', sans-serif;
+        font-size: 14px;
+      }
+      .tos-multiselect-item {
+        padding: 3px;
+        cursor: pointer;
+        min-height: 20px;
+      }
+      .multiselect-results {
+        @apply(--layout-vertical);
+      }
+      .multiselect-options {
+        @apply(--layout-horizontal);
+              
+      }     
+      .scrollable {
+        overflow: auto;
+      }
+      .tos-multiselect-item{
+        @apply(--layout-horizontal);
+      }
+      .flex {
+        @apply(--layout-flex);
+      }
+      
+      .multiselect-hidden-selected{
+        border-bottom: 1px solid #ddd;
+        margin-bottom: 8px;
+      }
+
+
+      .iron-selected .not-selected-icon{
+        display: none;
+      }
+      .selected-icon {
+        display: none;
+      }
+      .iron-selected .selected-icon{
+        display: inline-block;
+      }
+      .tos-multiselect-item-name{
+        margin-left: 8px;
+      }
+    
+      .hide-all-selected {
+        display: none;
+      }
+  
+    </style>
+
+      <paper-input 
+        is="iron-input" 
+        id="input"
+        class="tos-multiselect-input"
+        label="[[label]]"
+        always-float-label 
+        bind-value="{{typedValue::input}}"
+        value="{{typedValue::input}}" 
+        on-focus="_showResults" 
+        on-click="_showResults"
+        on-keydown="_checkForEnter"
+        >
+          <iron-icon icon="icons:search" prefix></iron-icon>
+          <paper-icon-button icon="icons:expand-more" suffix on-click="_toggleResult" class="tos-multiselect-toggle"></paper-icon-button>
+      </paper-input> 
+
+    <simple-overlay id="results" class="scrollable" on-iron-overlay-canceled="_checkOverlayCancle">
+      <div class="multiselect-results">
+
+        <div class="multiselect-options">
+          <paper-button class="flex" on-click="selectAll">
+            <iron-icon icon="icons:check-box"></iron-icon>Select all
+          </paper-button>
+          <paper-button class="flex" on-click="clearSelection">
+            <iron-icon icon="icons:check-box-outline-blank"></iron-icon>Clear selection
+          </paper-button>
+        </div>
+
+        <div class="list short multiselect-hidden-selected" role="listbox" id="hiddenSelectedContainer">
+          <template is="dom-repeat" items="{{_selectedItemsHidden}}" id="hiddenSelected">
+            <paper-item name="[[item]]" class="tos-multiselect-item iron-selected" on-click="_toogleItemSelectedHidden">
+              <iron-icon icon="icons:check-box" class="selected-icon"></iron-icon>
+              <iron-icon icon="icons:check-box-outline-blank" class="not-selected-icon"></iron-icon>
+              <div class="flex tos-multiselect-item-name">[[item]]</div>
+            </paper-item>
+          </template>
+        </div>
+  
+        <div class="list short" role="listbox">
+          <iron-selector multi 
+            id="multiselect" 
+            attr-for-selected="name" 
+            on-iron-select="_toogleItemSelected" 
+            on-iron-deselect="_toogleItemSelected">
+            <template is="dom-repeat" items="{{filteredItems}}" on-dom-change="_updateMultiselect" >
+              <paper-item name="[[item]]" class="tos-multiselect-item">
+                <iron-icon icon="icons:check-box" class="selected-icon"></iron-icon>
+                <iron-icon icon="icons:check-box-outline-blank" class="not-selected-icon"></iron-icon>
+                <div class="flex tos-multiselect-item-name">[[item]]</div>
+              </paper-item>
+            </template>
+        </iron-selector>
+        </div>
+      </div>
+    
+    </simple-overlay> 
+
+  </template>
+  
+  <script>
+
+    var truncate = StringTruncate({
+      maxLength: 53
+    });
+
+
+    Polymer({
+      is: 'tos-multiselect',
+
+      behaviors: [
+        Polymer.IronA11yKeysBehavior
+      ],
+      properties: {
+        /**
+         * Array with all selected items of the multiselect
+         */
+        selectedItems: {
+          type: Array,
+          value: function() {
+            return [];
+          }
+        },
+        /**
+         * The value the user typed 
+         */
+        typedValue: {
+          type: String,
+          observer: '_typedValueChanged',
+          notify: true
+        },
+        /**
+         * Number of results displayed while searching or opening the multiselect
+         */
+        maxResults: {
+          type: Number,
+          value: 8
+        },
+        /**
+         * Disable the typeahead fucntionality
+         */
+        typeaheadDisabled: {
+          type: Boolean,
+          value: false
+        },
+        /**
+         * All items availiable for selection
+         */
+        data: {
+          type: Array,
+          value: []
+        },
+        /**
+         * The status of the multiselect, true if opend
+         */
+        opened: {
+          type: Boolean,
+          value: false,
+          readOnly: true
+        },
+        /**
+         * Function used to get the displayed values, overwrite in order to implement asyn loading
+         */
+        filteredItems: {
+          type: Array,
+          computed: '_getFiltered(data.*, typedValue, filterFn, maxResults,' +
+          'typeaheadDisabled)',
+          notify: true
+        },
+        /**
+         * Function used by filteredItems to filter the items against the typed value
+         * Default implementation is a case insensitive contains filter 
+         */
+        filterFn: {
+          type: Function,
+          value: function() {
+            return function(data, value) {
+              var r = RegExp(value, 'i');
+
+              if (value === null || value === '' ) {
+                return data;
+              }
+
+              return data.filter(function(v) {
+                return (r.test(v) ? v : null);
+              });
+            };
+          }
+        },
+        /**
+         * List of selected but because of the current search not visible items 
+         */
+        _selectedItemsHidden: {
+          type: Array,
+          value: function() {
+            return [];
+          }
+        },
+        // private because we don't want the user to set it true if there is no results
+        _searchResults: {
+          type: Number,
+          value: 0
+        },
+        //used to block remove event triggered when clearing selectedItems while searching
+        _ignoreActivateEvents: {
+          type: Boolean,
+          value: false
+        }
+
+      },
+      // Element Lifecycle
+      ready: function() {
+        // `ready` is called after all elements have been configured, but
+        // propagates bottom-up. This element's children are ready, but parents
+        // are not.
+        //
+        // This is the point where you should make modifications to the DOM (when
+        // necessary), or kick off any processes the element wants to perform.
+      },
+      attached: function() {
+
+        this.typedValue = truncate.arrayOfStrings(this.selectedItems);
+      },
+      detached: function() {
+        // The analog to `attached`, `detached` fires when the element has been
+        // removed from a document.
+        //
+        // Use this to clean up anything you did in `attached`.
+      },
+
+      // Element Behavior
+      /**
+       * Sometimes it's just nice to say hi.
+       *
+       * @param {string} greeting A positive greeting.
+       * @return {string} The full greeting.
+       */
+      
+      /**
+       * Select all currenlty visible elements
+       */
+      selectAll: function (){
+        //get a copy as we only want to compute once
+        var items = this.filteredItems.slice();
+        var multiselect = this.$$('#multiselect');
+        for (var i = 0; i < items.length; i++) {
+          //not selected?
+          if (this.selectedItems.indexOf(items[i]) < 0) {
+            multiselect.select(items[i]);
+          }
+        }
+
+        //check all hidden items that are currently unchecked 
+        var notSelectedNodes = this._getArrayFromNodelist(
+          this.$$('#hiddenSelectedContainer').querySelectorAll(".tos-multiselect-item:not(.iron-selected)")
+        );
+        var obj = this;
+        notSelectedNodes.forEach(function(node) {
+            //update ui
+            obj.toggleClass('iron-selected',true,node);
+
+            obj.push('selectedItems',node.name);
+        });
+
+      },
+      /**
+       * Clear all selected items, if search is active only visible items will be cleared
+       */
+      clearSelection: function () {
+        //clear visible selected (in search)
+        var multiselect = this.$$('#multiselect');
+        multiselect.selectedValues = [];
+        if((this.typedValue?this.typedValue:"").length == 0){
+          //clear hidden selected
+          //update ui
+          var activeNodes = this._getArrayFromNodelist(this.$$('#hiddenSelectedContainer').querySelectorAll(".iron-selected"));
+          var obj = this;
+          activeNodes.forEach(function(node) {
+              obj.toggleClass('iron-selected',false,node);
+              var idx = obj.selectedItems.indexOf(node.name);
+              if(idx >=0)
+                obj.splice('selectedItems',idx,1);
+          });
+        }
+        
+      },
+      keyBindings: {
+          '* down up': '_navigateSelected'
+      },
+      _navigateSelected: function(event){
+        //get all visible options
+        if(this._isSearching()){
+          //we only show search so ignore hidden!
+          var all = this._getArrayFromNodelist(this.$.results.querySelectorAll("#multiselect .tos-multiselect-item"));
+        }else{
+          //var all = Array.from(this.$.results.querySelectorAll(".tos-multiselect-item"));
+          var all = this._getArrayFromNodelist(this.$.results.querySelectorAll(".tos-multiselect-item"));
+        }
+
+        if(all.length > 0 ){
+          //get index of focused element
+          var idx = all.indexOf(this.$.results.querySelector(".tos-multiselect-item:focus"));
+          var maxIdx = all.length-1;
+          if(event.detail.key == 'up'){
+            idx--;
+          }
+          if(event.detail.key == 'down'){
+            idx++;
+          }
+          idx = idx < 0 ? maxIdx : idx;
+          idx = idx > maxIdx ? 0: idx;
+          all[idx].focus();
+        }
+    
+      },
+      _getArrayFromNodelist: function (nodelist){
+        return Array.prototype.slice.call(nodelist);
+      },
+      _isSearching: function (){
+        return (this.typedValue != null && this.typedValue.length > 0);
+      },
+  
+      _toogleItemSelected: function(e){
+        if(this._ignoreActivateEvents)
+          return;
+        var value = e.detail.item.name;
+        var i = this.selectedItems.indexOf(value);
+        var unselected = i < 0;
+        if (unselected) {
+          this.push('selectedItems',value);
+        } else {
+          this.splice('selectedItems',i,1);
+        }
+      },
+
+      _updateMultiselect: function (){
+        //make sure the multiselect is also updated!
+        var obj = this;
+        this.async(function(){
+
+          var multiselect = this.$$('#multiselect');
+
+          //clear hiddenSelected and force render ()
+          this._selectedItemsHidden = [];
+          this.$$('#hiddenSelected').render();
+
+          //select items still visible and store hidden selected 
+          this.selectedItems.map(function(item) { 
+            var idx = multiselect._valueToIndex(item);
+
+            if(idx >= 0){
+              multiselect.select(item);
+            } else {
+              obj.push('_selectedItemsHidden',item);
+            }
+          });
+          //allow events again after selection is re newed
+          this._ignoreActivateEvents = false;
+        });
+      },
+ 
+      _getFiltered: function(
+        data, typedValue, filterFn, maxResults, typeaheadDisabled) {
+        if (typeaheadDisabled) { return []; }
+        var data =  filterFn.call(this, data.base, typedValue).slice(0, maxResults);
+
+        if(this._isSearching() ){
+          this.toggleClass('hide-all-selected',true,this.$.hiddenSelectedContainer); 
+        }else{
+          this.toggleClass('hide-all-selected',false,this.$.hiddenSelectedContainer); 
+        }
+
+        return data;
+      },
+      _typedValueChanged: function() {
+        this._ignoreActivateEvents = true;
+
+        //store current selected items and then clear them!
+        var selectedItems = this.selectedItems.slice();
+        var multiselect = this.$$('#multiselect');
+        
+        //clear items 
+        multiselect.selectedValues = [];
+        //restore selectedItem as they have been cleared by removeing the seletedValues 
+        this.selectedItems = selectedItems.slice();
+        this._searchResults = this.filteredItems.length;
+      },
+      _showResults: function(event){
+        if(!this.opened){
+          this.typedValue = null;
+          this._setOpened(true);
+          //get results on click (=search without value)
+          if(!this._isSearching())
+            this._searchResults = this.filteredItems.length;
+
+          //position and oprn results
+          var container = this.$.input;
+          console.log(container.clientWidth);
+          console.log(container.offsetWidth);
+          this.$.results.setAttribute("style",
+            "top: "+(container.offsetTop+container.offsetHeight)+"px; "+
+            "width:"+container.clientWidth+"px;");
+          this.$.results.open();
+          this.fire('tos-multiselect-opened');
+        }
+      },
+      _hideResults: function(){
+        if(this.opened){
+          this.$.results.close();
+          this.typedValue = truncate.arrayOfStrings(this.selectedItems);
+          this._setOpened(false);
+          this.fire('tos-multiselect-closed');
+        }
+      },
+      _toggleResult: function (event){
+        if(this.opened){
+          this._hideResults();
+        }else{
+          this.$.input.focus();
+          this._showResults(event);
+        }
+        //prevent other click events for the input
+        event.preventDefault();
+        event.stopPropagation();
+      
+      },
+      _checkForEnter: function (e) {
+        if (e.keyCode === 13) {
+          this.$.input.blur();
+          this._hideResults(); 
+        }
+      },
+      _toogleItemSelectedHidden: function (event){
+        var value = event.model.item;
+        var i = this.selectedItems.indexOf(value);
+        if(i >= 0){
+          this.arrayDelete('selectedItems',value);
+          this.toggleClass('iron-selected',false,event.currentTarget);
+        } else {
+          this.push('selectedItems',value);
+          this.toggleClass('iron-selected',true,event.currentTarget);
+        }
+      },
+      _checkOverlayCancle: function (e){
+        //catch clicks from this component by checking if the current element is in the path of the event
+        if(e.detail.path != null && e.detail.path.indexOf(this) >= 0){
+          e.preventDefault();
+          e.stopPropagation();
+        }else{
+          this._hideResults();
+        }
+      }
+/**
+ * Fired after the `tos-multiselect` opens.
+ * @event tos-multiselect-opened
+ */
+    });
+  </script>
+</dom-module>

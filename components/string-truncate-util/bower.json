@@ -1,0 +1,28 @@
+{
+  "name": "string-truncate-util",
+  "description": "Functions to truncate strings and array of strings",
+  "main": "string-truncate.js",
+  "version": "1.0.0",
+  "authors": [
+    "Tobias Stanzel <tobi.stanzel@gmail.com>"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "string",
+    "truncate",
+    "array",
+    "of",
+    "strings"
+  ],
+  "homepage": "https://github.com/tuct/string-truncate-util",
+  "moduleType": [
+    "node"
+  ],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

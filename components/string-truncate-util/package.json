@@ -1,0 +1,35 @@
+{
+  "name": "string-truncate-util",
+  "version": "1.0.0",
+  "description": "Functions to truncate strings and array of strings",
+  "main": "string-truncate.js",
+  "scripts": {
+    "test": "mocha --recursive",
+    "test-coverage": "istanbul.cmd cover .\\node_modules\\mocha\\bin\\_mocha"
+ 
+  },
+  "devDependencies": {
+    "chai": "^2.1.1",
+    "coveralls": "^2.11.2",
+    "istanbul": "^0.4.1",
+    "jsdom": "^3.1.2",
+    "mocha": "^2.2.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:tuct/string-truncate-util.git"
+  },
+  "keywords": [
+    "string",
+    "truncate",
+    "array",
+    "of",
+    "strings"
+  ],
+  "author": "Tobias Stanzel <tobi.stanzel@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tuct/string-truncate-util/issues"
+  },
+  "homepage": "https://github.com/tuct/string-truncate-util#readme"
+}
